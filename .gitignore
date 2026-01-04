@@ -1,2 +1,4 @@
 *.exe
 *.dll
+compile.bat
+plugins/python/python.ini

@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PluginHotLoader Gallery</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+</head>
+<body class="bg-gray-900 text-white font-sans">
+
+    <header class="py-10 bg-gray-800 shadow-lg border-b border-gray-700">
+        <div class="max-w-6xl mx-auto px-6 text-center">
+            <h1 class="text-4xl font-bold text-blue-400">Plugin Gallery</h1>
+            <p class="text-gray-400 mt-2 mb-8">Repository for DLLPluginSystem modules</p>
+            
+            <div class="flex flex-col md:flex-row gap-4 justify-center items-center">
+                <div class="relative w-full md:w-96">
+                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"></i>
+                    <input type="text" id="search-input" placeholder="Search plugins..." 
+                           class="w-full bg-gray-900 border border-gray-700 rounded-lg py-2 pl-10 pr-4 focus:outline-none focus:border-blue-500 transition">
+                </div>
+                <select id="filter-type" class="bg-gray-900 border border-gray-700 rounded-lg py-2 px-4 focus:outline-none focus:border-blue-500 transition">
+                    <option value="all">All Types</option>
+                    <option value="DLL">Windows DLL</option>
+                    <option value="Python">Python</option>
+                    <option value="Lua">Lua</option>
+                    <option value="SO">Linux SO</option>
+                </select>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto p-6">
+        <div id="plugin-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            </div>
+    </main>
+
+    <script>
+        let allPlugins = []; // Store original data for filtering
+
+        async function init() {
+            try {
+                const response = await fetch('catalog.json');
+                const data = await response.json();
+                allPlugins = data.plugins;
+                renderPlugins(allPlugins);
+                
+                // Set up event listeners
+                document.getElementById('search-input').addEventListener('input', handleFilter);
+                document.getElementById('filter-type').addEventListener('change', handleFilter);
+            } catch (error) {
+                console.error('Error loading catalog:', error);
+                document.getElementById('plugin-list').innerHTML = `<p class="text-red-400 text-center col-span-full">Failed to load plugin catalog.</p>`;
+            }
+        }
+
+        function handleFilter() {
+            const searchTerm = document.getElementById('search-input').value.toLowerCase();
+            const typeFilter = document.getElementById('filter-type').value;
+
+            const filtered = allPlugins.filter(plugin => {
+                const matchesSearch = plugin.name.toLowerCase().includes(searchTerm) || 
+                                    plugin.description.toLowerCase().includes(searchTerm);
+                const matchesType = typeFilter === 'all' || plugin.type === typeFilter;
+                
+                return matchesSearch && matchesType;
+            });
+
+            renderPlugins(filtered);
+        }
+
+        function renderPlugins(plugins) {
+            const container = document.getElementById('plugin-list');
+            container.innerHTML = '';
+
+            if (plugins.length === 0) {
+                container.innerHTML = `<p class="text-center col-span-full text-gray-500 mt-10">No plugins found matching your criteria.</p>`;
+                return;
+            }
+
+            plugins.forEach(plugin => {
+                let typeIcon = '';
+                let typeLabelClass = '';
+                let downloadButtonText = 'Download .dll';
+
+                switch (plugin.type) {
+                    case 'Python':
+                        typeIcon = '<i class="fab fa-python text-blue-400 mr-2"></i>';
+                        typeLabelClass = 'bg-green-900 text-green-200';
+                        break;
+                    case 'Lua':
+                        typeIcon = '<i class="fas fa-moon text-indigo-400 mr-2"></i>';
+                        typeLabelClass = 'bg-indigo-900 text-indigo-200';
+                        break;
+                    case 'DLL':
+                        typeIcon = '<i class="fas fa-cogs text-gray-400 mr-2"></i>';
+                        typeLabelClass = 'bg-gray-700 text-gray-300';
+                        break;
+                    case 'SO':
+                        typeIcon = '<i class="fab fa-linux text-gray-400 mr-2"></i>';
+                        typeLabelClass = 'bg-gray-900 text-gray-400 border border-gray-700';
+                        downloadButtonText = 'Download .so';
+                        break;
+                    default:
+                        typeIcon = '<i class="fas fa-puzzle-piece text-gray-400 mr-2"></i>';
+                        typeLabelClass = 'bg-gray-700 text-gray-300';
+                }
+
+                container.innerHTML += `
+                    <div class="bg-gray-800 p-6 rounded-xl border border-gray-700 hover:border-blue-500 transition shadow-md flex flex-col justify-between">
+                        <div>
+                            <div class="flex justify-between items-start mb-4">
+                                <h2 class="text-xl font-semibold text-blue-300">${plugin.name}</h2>
+                                <div class="flex flex-col items-end space-y-2">
+                                    <span class="bg-blue-900 text-blue-200 text-xs px-2 py-1 rounded">${plugin.version}</span>
+                                    <span class="${typeLabelClass} text-[10px] px-2 py-0.5 rounded-full flex items-center">${typeIcon}${plugin.type}</span>
+                                </div>
+                            </div>
+                            <p class="text-gray-400 text-sm mb-6">${plugin.description}</p>
+                        </div>
+                        <div class="flex items-center justify-between mt-4">
+                            <span class="text-xs text-gray-500 italic">By ${plugin.author}</span>
+                            <a href="${plugin.download_url}" 
+                               class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
+                               ${downloadButtonText}
+                            </a>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        init();
+    </script>
+</body>
+</html>

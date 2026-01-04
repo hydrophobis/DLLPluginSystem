@@ -1,0 +1,48 @@
+{
+  "plugins": [
+    {
+      "id": "python-loader",
+      "name": "Python Loader",
+      "description": "Embeds Python 3.14 into the runtime for scripting support.",
+      "author": "hydrophobis",
+      "category": "Language Support",
+      "type": "DLL",
+      "releases": [
+        { "version": "1.0.0", "url": "https://github.com/hydrophobis/PluginHotLoader/releases/download/v1.0.0/python.dll" }
+      ]
+    },
+    {
+      "id": "heartbeat",
+      "name": "Heartbeat Plugin",
+      "description": "Sends a heartbeat signal every second.",
+      "author": "hydrophobis",
+      "category": "Utility",
+      "type": "DLL",
+      "releases": [
+        { "version": "1.0.0", "url": "https://github.com/hydrophobis/PluginHotLoader/releases/download/v1.0.0/heartbeat.dll" }
+      ]
+    },
+    {
+      "id": "logger",
+      "name": "Logger Plugin",
+      "description": "Logs events to a file.",
+      "author": "hydrophobis",
+      "category": "Utility",
+      "type": "DLL",
+      "releases": [
+        { "version": "1.0.0", "url": "https://github.com/hydrophobis/PluginHotLoader/releases/download/v1.0.0/logger.dll" }
+      ]
+    },
+    {
+      "id": "console",
+      "name": "Console Plugin",
+      "description": "Provides an in-app console for command input.",
+      "author": "hydrophobis",
+      "category": "Utility",
+      "type": "DLL",
+      "releases": [
+        { "version": "1.0.0", "url": "https://github.com/hydrophobis/PluginHotLoader/releases/download/v1.0.0/console.dll" }
+      ]
+    }
+  ]
+}

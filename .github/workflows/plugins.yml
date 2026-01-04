@@ -1,0 +1,60 @@
+name: Build Plugins
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch: # Allows manual trigger
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.14
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.14-dev' # Or '3.13' if 3.14 isn't in the runner yet
+
+    - name: Install LLVM/Clang
+      run: choco install llvm -y
+
+    - name: Build Plugins and Runtime
+      shell: cmd
+      run: |
+        :: Get Python include/lib paths from the action environment
+        set PY_INCLUDE=%pythonLocation%\include
+        set PY_LIB=%pythonLocation%\libs
+
+        cd plugins
+        clang++.exe -shared -o console.dll console.cc
+        clang++.exe -shared -o heartbeat.dll heartbeat.cc
+        clang++.exe -shared -o logger.dll logger.cc
+        
+        :: Use the environment variables instead of hardcoded C:\Users\Kasen
+        clang++.exe -shared -o python.dll python.cc ..\ini.cc -I"%PY_INCLUDE%" -L"%PY_LIB%" -lpython314
+
+        cd ..
+        clang++.exe -o runtime.exe runtime.cc ini.cc
+
+    - name: Upload Binaries
+      uses: actions/upload-artifact@v4
+      with:
+        name: plugin-pack
+        path: |
+          plugins/*.dll
+          runtime.exe
+          
+    - name: Create Release
+      if: startsWith(github.ref, 'refs/tags/v')
+      uses: softprops/action-gh-release@v2
+      with:
+        files: |
+          plugins/python.dll
+          plugins/console.dll
+          plugins/heartbeat.dll
+          plugins/logger.dll
+          runtime.exe
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

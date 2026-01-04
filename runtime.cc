@@ -3,18 +3,19 @@
 #include <libloaderapi.h>
 #include <fstream>
 #include <conio.h>
+#include <chrono>
+#include <unordered_map>
+#include <functional>
+#include <vector>
+#include <algorithm>
 
 #define PLUGIN_DIR "plugins/"
-#define LOAD_LIBRARY(name) LoadLibraryA((PLUGIN_DIR + std::string(name)).c_str())
 #define TRACE(msg) std::cout << "[TRACE] " << msg << std::endl;
 #define ERROR(msg) std::cerr << "[ERROR] " << msg << std::endl;
 
 #include "plugin_api.h"
 #include "ini.h"
 #include "ocular.h"
-
-#include <unordered_map>
-#include <functional>
 
 class EventBus {
 public:
@@ -24,17 +25,121 @@ public:
         listeners[eventName].push_back(cb);
     }
 
+    // Add this method
+    void unregister_all_by_callback(event_callback_t cb) {
+        for (auto& pair : listeners) {
+            auto& vec = pair.second;
+            vec.erase(std::remove(vec.begin(), vec.end(), cb), vec.end());
+        }
+    }
+
     void send_event(const char* eventName, const char* payload) {
         auto it = listeners.find(eventName);
         if (it != listeners.end()) {
             for (auto& cb : it->second) {
-                cb(eventName, payload);
+                cb(eventName, payload); // <--- Crash happens here without cleanup
             }
         }
     }
 };
 
 EventBus EVENT_BUS;
+
+class Storage {
+public:
+    std::unordered_map<std::string, std::string> data;
+    
+    bool set(const char* key, const char* value) {
+        data[key] = value;
+        return true;
+    }
+    
+    const char* get(const char* key) {
+        auto it = data.find(key);
+        if (it != data.end()) {
+            return it->second.c_str();
+        }
+        return nullptr;
+    }
+    
+    bool has(const char* key) {
+        return data.find(key) != data.end();
+    }
+    
+    bool remove(const char* key) {
+        return data.erase(key) > 0;
+    }
+};
+
+Storage STORAGE;
+
+struct Timer {
+    uint64_t id;
+    uint32_t interval_ms;
+    event_callback_t callback;
+    bool repeat;
+    std::chrono::steady_clock::time_point next_fire;
+    bool active;
+};
+
+class TimerManager {
+public:
+    std::vector<Timer> timers;
+    uint64_t next_id = 1;
+    
+    uint64_t add_timer(uint32_t ms, event_callback_t callback, bool repeat) {
+        Timer t;
+        t.id = next_id++;
+        t.interval_ms = ms;
+        t.callback = callback;
+        t.repeat = repeat;
+        t.next_fire = std::chrono::steady_clock::now() + std::chrono::milliseconds(ms);
+        t.active = true;
+        timers.push_back(t);
+        return t.id;
+    }
+    
+    bool cancel_timer(uint64_t id) {
+        for (auto& t : timers) {
+            if (t.id == id) {
+                t.active = false;
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    void update() {
+        auto now = std::chrono::steady_clock::now();
+        
+        for (auto& t : timers) {
+            if (!t.active) continue;
+            
+            if (now >= t.next_fire) {
+                t.callback("timer", "");
+                
+                if (t.repeat) {
+                    t.next_fire = now + std::chrono::milliseconds(t.interval_ms);
+                } else {
+                    t.active = false;
+                }
+            }
+        }
+        
+        // Remove inactive timers
+        timers.erase(
+            std::remove_if(timers.begin(), timers.end(), 
+                [](const Timer& t) { return !t.active; }),
+            timers.end()
+        );
+    }
+};
+
+TimerManager TIMER_MANAGER;
+
+void host_log(const char* level, const char* message) {
+    std::cout << "[" << level << "] " << message << std::endl;
+}
 
 class Plugin {
 public:
@@ -50,7 +155,6 @@ public:
           getInfo(nullptr), init(nullptr), shutdown(nullptr) {}
 
     bool load() {
-        AUTOLOG;
         handle = LoadLibraryA((PLUGIN_DIR + name).c_str());
         if (!handle) {
             std::cerr << "Failed to load plugin: " << name << std::endl;
@@ -88,17 +192,46 @@ public:
         }
     }
 
-    static void host_send_event(const char* eventName, const char* payload) {
+    // Host callback implementations
+    static void __cdecl host_send_event(const char* eventName, const char* payload) {
         EVENT_BUS.send_event(eventName, payload);
     }
 
-    static void host_register_event(const char* eventName, event_callback_t cb) {
+    static void __cdecl host_register_event(const char* eventName, event_callback_t cb) {
         EVENT_BUS.register_event(eventName, cb);
+    }
+
+    static void __cdecl host_unregister_event(event_callback_t cb) {
+        EVENT_BUS.unregister_all_by_callback(cb);
+    }
+
+    static bool __cdecl host_set_data(const char* key, const char* value) {
+        return STORAGE.set(key, value);
+    }
+
+    static const char* __cdecl host_get_data(const char* key) {
+        return STORAGE.get(key);
+    }
+
+    static bool __cdecl host_has_data(const char* key) {
+        return STORAGE.has(key);
+    }
+
+    static bool __cdecl host_delete_data(const char* key) {
+        return STORAGE.remove(key);
+    }
+
+    static uint64_t __cdecl host_set_timer(uint32_t ms, event_callback_t callback, bool repeat) {
+        return TIMER_MANAGER.add_timer(ms, callback, repeat);
+    }
+
+    static bool __cdecl host_cancel_timer(uint64_t timer_id) {
+        return TIMER_MANAGER.cancel_timer(timer_id);
     }
 
     inline static std::vector<Plugin>* g_plugins = nullptr;
 
-    static bool host_load_plugin(const char* name) {
+    static bool __cdecl host_load_plugin(const char* name) {
         std::cout << "[Host] Plugin requested load: " << name << std::endl;
 
         Plugin p(name);
@@ -109,7 +242,7 @@ public:
         return false;
     }
 
-    static bool host_unload_plugin(const char* name) {
+    static bool __cdecl host_unload_plugin(const char* name) {
         std::cout << "[Host] Plugin requested unload: " << name << std::endl;
 
         for (size_t i = 0; i < g_plugins->size(); i++) {
@@ -125,8 +258,16 @@ public:
     PluginHost host = {
         host_send_event,
         host_register_event,
+        host_unregister_event,
         host_load_plugin,
-        host_unload_plugin
+        host_unload_plugin,
+        host_log,
+        host_set_data,
+        host_get_data,
+        host_has_data,
+        host_delete_data,
+        host_set_timer,
+        host_cancel_timer
     };
 };
 
@@ -153,50 +294,72 @@ int main() {
         std::cout << "[Runtime] Loading plugin: " << pluginPath << std::endl;
 
         Plugin plugin(pluginPath);
-        if (plugin.load()) {
-            loadedPlugins.push_back(std::move(plugin));
+
+        if (!plugin.load()) {
+            std::cerr << "[Runtime] Failed to load plugin: " << pluginPath << std::endl;
+            continue;
         }
+
+        const PluginInfo* info = plugin.getInfo();
+
+        for (const auto& dep : info->dependencies) {
+            if (dep.type == DEP_TYPE_OPTIONAL) break;
+            if (!dep.name || dep.name[0] == '\0') break;
+
+            std::cout << "[Runtime] Checking dependency: " << dep.name << std::endl;
+
+            Plugin depPlugin(dep.name);
+            if (!depPlugin.load()) {
+                std::cerr << "[Runtime] Failed to load dependency: " << dep.name << std::endl;
+                continue;
+            }
+
+            loadedPlugins.push_back(std::move(depPlugin));
+        }
+
+        loadedPlugins.push_back(std::move(plugin));
     }
 
     std::cout << "[Runtime] Entering main loop..." << std::endl;
+    std::cout << "> ";
 
     bool running = true;
+    std::string inputBuffer;
 
     while (running) {
-        // Example periodic event
+        // Update timers
+        TIMER_MANAGER.update();
+        
+        // Send periodic tick event
         EVENT_BUS.send_event("tick", "16ms");
 
-        static std::string inputBuffer;
-
+        // Handle keyboard input
         if (_kbhit()) {
             int ch = _getch();
 
-            // Enter key = submit command
             if (ch == '\r') {
                 if (!inputBuffer.empty()) {
+                    std::cout << std::endl;
                     EVENT_BUS.send_event("consoleInput", inputBuffer.c_str());
                     inputBuffer.clear();
                 }
-                std::cout << "\n> "; // prompt
+                std::cout << "> ";
             }
-            // Backspace
             else if (ch == '\b') {
                 if (!inputBuffer.empty()) {
                     inputBuffer.pop_back();
                     std::cout << "\b \b";
                 }
             }
-            // Printable characters
             else if (ch >= 32 && ch <= 126) {
                 inputBuffer.push_back((char)ch);
                 std::cout << (char)ch;
             }
         }
 
-
         // ESC to quit
         if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) {
-            std::cout << "[Runtime] ESC pressed, shutting down..." << std::endl;
+            std::cout << "\n[Runtime] ESC pressed, shutting down..." << std::endl;
             running = false;
         }
 
