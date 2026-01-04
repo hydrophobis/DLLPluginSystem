@@ -28,19 +28,18 @@ jobs:
         set PY_LIB=%pythonLocation%\libs
         
         :: Added -D_AMD64_ to explicitly satisfy the Windows SDK requirements
-        set FLAGS=--target=x86_64-pc-windows-msvc -std=c++20 -D_AMD64_
+        set FLAGS=--target=x86_64-pc-windows-msvc -std=c++20 -D_X86_64_
         
         cd plugins
-        clang++.exe %FLAGS% -shared -o console.dll console.cc
-        clang++.exe %FLAGS% -shared -o heartbeat.dll heartbeat.cc
-        clang++.exe %FLAGS% -shared -o logger.dll logger.cc
-        
-        clang++.exe %FLAGS% -shared -o python.dll python.cc ..\ini.cc -I"%PY_INCLUDE%" -L"%PY_LIB%" -lpython314
+        clang-20.exe %FLAGS% -shared -o console.dll console.cc
+        clang-20.exe %FLAGS% -shared -o heartbeat.dll heartbeat.cc
+        clang-20.exe %FLAGS% -shared -o logger.dll logger.cc
+
+        clang-20.exe %FLAGS% -shared -o python.dll python.cc ..\ini.cc -I"%PY_INCLUDE%" -L"%PY_LIB%" -lpython314
         
         cd ..
         :: Build the main runtime with the same architecture flags
-        clang++.exe %FLAGS% -o runtime.exe runtime.cc ini.cc
-
+        clang-20.exe %FLAGS% -o runtime.exe runtime.cc ini.cc
     - name: Upload Binaries
       uses: actions/upload-artifact@v4
       with:
