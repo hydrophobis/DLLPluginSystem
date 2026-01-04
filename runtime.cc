@@ -2,6 +2,7 @@
 #include <string>
 #include <libloaderapi.h>
 #include <fstream>
+#include <conio.h>
 
 #define PLUGIN_DIR "plugins/"
 #define LOAD_LIBRARY(name) LoadLibraryA((PLUGIN_DIR + std::string(name)).c_str())
@@ -95,9 +96,37 @@ public:
         EVENT_BUS.register_event(eventName, cb);
     }
 
+    inline static std::vector<Plugin>* g_plugins = nullptr;
+
+    static bool host_load_plugin(const char* name) {
+        std::cout << "[Host] Plugin requested load: " << name << std::endl;
+
+        Plugin p(name);
+        if (p.load()) {
+            g_plugins->push_back(std::move(p));
+            return true;
+        }
+        return false;
+    }
+
+    static bool host_unload_plugin(const char* name) {
+        std::cout << "[Host] Plugin requested unload: " << name << std::endl;
+
+        for (size_t i = 0; i < g_plugins->size(); i++) {
+            if ((*g_plugins)[i].name == name) {
+                (*g_plugins)[i].unload();
+                g_plugins->erase(g_plugins->begin() + i);
+                return true;
+            }
+        }
+        return false;
+    }
+
     PluginHost host = {
         host_send_event,
-        host_register_event
+        host_register_event,
+        host_load_plugin,
+        host_unload_plugin
     };
 };
 
@@ -105,6 +134,7 @@ int main() {
     std::cout << "[Runtime] Starting plugin host..." << std::endl;
 
     std::vector<Plugin> loadedPlugins;
+    Plugin::g_plugins = &loadedPlugins;
     std::vector<std::string> pluginEntries = parse_ini("plugins.ini", "PLUGINS");
 
     if (pluginEntries.empty()) {
@@ -135,6 +165,34 @@ int main() {
     while (running) {
         // Example periodic event
         EVENT_BUS.send_event("tick", "16ms");
+
+        static std::string inputBuffer;
+
+        if (_kbhit()) {
+            int ch = _getch();
+
+            // Enter key = submit command
+            if (ch == '\r') {
+                if (!inputBuffer.empty()) {
+                    EVENT_BUS.send_event("consoleInput", inputBuffer.c_str());
+                    inputBuffer.clear();
+                }
+                std::cout << "\n> "; // prompt
+            }
+            // Backspace
+            else if (ch == '\b') {
+                if (!inputBuffer.empty()) {
+                    inputBuffer.pop_back();
+                    std::cout << "\b \b";
+                }
+            }
+            // Printable characters
+            else if (ch >= 32 && ch <= 126) {
+                inputBuffer.push_back((char)ch);
+                std::cout << (char)ch;
+            }
+        }
+
 
         // ESC to quit
         if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) {

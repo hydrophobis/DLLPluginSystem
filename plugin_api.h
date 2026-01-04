@@ -23,6 +23,9 @@ typedef void (*event_callback_t)(const char* eventName, const char* payload);
 struct PluginHost {
     void (*send_event)(const char* eventName, const char* payload);
     void (*register_event)(const char* eventName, event_callback_t callback);
+
+    bool (*load_plugin)(const char* name);
+    bool (*unload_plugin)(const char* name);
 };
 
 typedef bool (*plugin_init_t)(PluginHost* host);

@@ -2,13 +2,13 @@
 #include "../../plugin_api.h"
 
 static PluginInfo INFO = {
-    "LoggerPlugin",
+    "logger",
     "1.0.0",
     ABI_V1
 };
 
 static void onAnyEvent(const char* eventName, const char* payload) {
-    std::cout << "[LoggerPlugin] event=" << eventName
+    std::cout << "[logger] event=" << eventName
               << " payload=" << (payload ? payload : "") << std::endl;
 }
 
@@ -21,7 +21,7 @@ const PluginInfo* plugin_get_info() {
 
 __declspec(dllexport)
 bool plugin_init(PluginHost* host) {
-    std::cout << "[LoggerPlugin] Initialized" << std::endl;
+    std::cout << "[logger] Initialized" << std::endl;
     host->register_event("onKey", onAnyEvent);
     host->register_event("heartbeat", onAnyEvent);
     host->register_event("chatMessage", onAnyEvent);
@@ -31,7 +31,7 @@ bool plugin_init(PluginHost* host) {
 
 __declspec(dllexport)
 void plugin_shutdown() {
-    std::cout << "[LoggerPlugin] Shutdown" << std::endl;
+    std::cout << "[logger] Shutdown" << std::endl;
 }
 
 }
