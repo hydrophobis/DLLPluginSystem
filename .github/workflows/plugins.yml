@@ -1,9 +1,10 @@
+permissions:
+  contents: write
+
 name: Build Plugins
 
 on:
-  push:
-    branches: [ "main" ]
-  workflow_dispatch: # Allows manual trigger
+  workflow_dispatch:
 
 jobs:
   build:
@@ -23,20 +24,20 @@ jobs:
     - name: Build Plugins and Runtime
       shell: cmd
       run: |
-        :: Get Python include/lib paths from the action environment
         set PY_INCLUDE=%pythonLocation%\include
         set PY_LIB=%pythonLocation%\libs
+        
+        set OPTS=-std=c++20 --target=x86_64-pc-windows-msvc
 
         cd plugins
-        clang++.exe -shared -o console.dll console.cc
-        clang++.exe -shared -o heartbeat.dll heartbeat.cc
-        clang++.exe -shared -o logger.dll logger.cc
+        clang++.exe %OPTS% -shared -o console.dll console.cc
+        clang++.exe %OPTS% -shared -o heartbeat.dll heartbeat.cc
+        clang++.exe %OPTS% -shared -o logger.dll logger.cc
         
-        :: Use the environment variables instead of hardcoded C:\Users\Kasen
-        clang++.exe -shared -o python.dll python.cc ..\ini.cc -I"%PY_INCLUDE%" -L"%PY_LIB%" -lpython314
+        clang++.exe %OPTS% -shared -o python.dll python.cc ..\ini.cc -I"%PY_INCLUDE%" -L"%PY_LIB%" -lpython314
 
         cd ..
-        clang++.exe -o runtime.exe runtime.cc ini.cc
+        clang++.exe %OPTS% -o runtime.exe runtime.cc ini.cc
 
     - name: Upload Binaries
       uses: actions/upload-artifact@v4
@@ -45,7 +46,7 @@ jobs:
         path: |
           plugins/*.dll
           runtime.exe
-          
+
     - name: Create Release
       if: startsWith(github.ref, 'refs/tags/v')
       uses: softprops/action-gh-release@v2
