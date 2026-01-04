@@ -24,20 +24,23 @@ jobs:
     - name: Build Plugins and Runtime
       shell: cmd
       run: |
+        :: Get Python include/lib paths from the action environment
         set PY_INCLUDE=%pythonLocation%\include
         set PY_LIB=%pythonLocation%\libs
-        
-        set OPTS=-std=c++20 --target=x86_64-pc-windows-msvc
+
+        set FLAGS=--target=x86_64-pc-windows-msvc -std=c++20
 
         cd plugins
-        clang++.exe %OPTS% -shared -o console.dll console.cc
-        clang++.exe %OPTS% -shared -o heartbeat.dll heartbeat.cc
-        clang++.exe %OPTS% -shared -o logger.dll logger.cc
+        clang++.exe %FLAGS% -shared -o console.dll console.cc
+        clang++.exe %FLAGS% -shared -o heartbeat.dll heartbeat.cc
+        clang++.exe %FLAGS% -shared -o logger.dll logger.cc
         
-        clang++.exe %OPTS% -shared -o python.dll python.cc ..\ini.cc -I"%PY_INCLUDE%" -L"%PY_LIB%" -lpython314
+        :: Build Python plugin using detected paths
+        clang++.exe %FLAGS% -shared -o python.dll python.cc ..\ini.cc -I"%PY_INCLUDE%" -L"%PY_LIB%" -lpython314
 
         cd ..
-        clang++.exe %OPTS% -o runtime.exe runtime.cc ini.cc
+        :: Build the main runtime
+        clang++.exe %FLAGS% -o runtime.exe runtime.cc ini.cc
 
     - name: Upload Binaries
       uses: actions/upload-artifact@v4
