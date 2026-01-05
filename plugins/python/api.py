@@ -23,3 +23,41 @@ def on(event_name):
         host.on(event_name, wrapper)
         return wrapper
     return decorator
+
+# --- Extended API ---
+
+def send_event(event, payload):
+    """Send an event to the host."""
+    host.send_event(str(event), str(payload))
+
+def load_plugin(name):
+    """Load a plugin by name. Returns True on success."""
+    return host.load_plugin(str(name))
+
+def unload_plugin(name):
+    """Unload a plugin by name. Returns True on success."""
+    return host.unload_plugin(str(name))
+
+def set_data(key, value):
+    """Set key-value data in the host."""
+    return host.set_data(str(key), str(value))
+
+def get_data(key):
+    """Get value for a key from the host, or None."""
+    return host.get_data(str(key))
+
+def has_data(key):
+    """Check if a key exists in host storage."""
+    return host.has_data(str(key))
+
+def delete_data(key):
+    """Delete a key from host storage. Returns True if deleted."""
+    return host.delete_data(str(key))
+
+def set_timer(ms, callback, repeat=False):
+    """Set a timer in milliseconds. Returns the timer ID."""
+    return host.set_timer(int(ms), callback, repeat)
+
+def cancel_timer(timer_id):
+    """Cancel a timer by its ID. Returns True if canceled."""
+    return host.cancel_timer(timer_id)
