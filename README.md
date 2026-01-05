@@ -96,7 +96,7 @@ The header provides inline helpers to simplify calls to the `PluginHost` table.
 
 ## 5. Python Bridge
 
-The `python_loader.dll` embeds a Python interpreter. Scripts in `/plugins/python/` have access to a built-in `host` module.
+The `python.cc` embeds a Python interpreter. Scripts in `/plugins/python/` have access to a built-in `host` module.
 
 **python.ini requirements:**
 
@@ -124,6 +124,5 @@ host.log("INFO", "Python script active.")
 
 ## 6. Technical Constraints
 
-1. **ABI Compatibility**: The system uses `extern "C"` and `__cdecl` to ensure the Host.exe can talk to DLLs even if they were compiled with different versions of MSVC.
-2. **String Ownership**: The `const char*` pointers passed in events are owned by the caller. **Do not** store these pointers. If you need the data later, copy it to a `std::string`.
-3. **Threading**: The current runtime is single-threaded. Event handlers should not perform "blocking" work (like `Sleep()`), or they will freeze the entire host loop.
+1. **String Ownership**: The `const char*` pointers passed in events are owned by the caller. **Do not** store these pointers. If you need the data later, copy it to a `std::string`.
+2. **Threading**: The current runtime is single-threaded. Event handlers should not perform "blocking" work (like `Sleep()`), or they will freeze the entire host loop. (i plan to fix this soon)
