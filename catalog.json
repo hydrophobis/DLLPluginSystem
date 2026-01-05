@@ -55,7 +55,7 @@
             { "id": "python", "required": true }
         ],
         "releases": [
-            { "version": "1.0.0", "url": "https://raw.githubusercontent.com/hydrophobis/DLLPluginSystem/refs/heads/main/plugins/python/console.py" }
+            { "version": "1.0.0", "url": "https://raw.githubusercontent.com/hydrophobis/DLLPluginSystem/refs/heads/main/libs/console.py" }
         ]
     }
   ]
