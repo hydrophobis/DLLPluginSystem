@@ -1,7 +1,5 @@
 # DLLPluginSystem
 
----
-
 ## 1. Project Layout
 
 For the runtime to resolve paths correctly, use this structure:
