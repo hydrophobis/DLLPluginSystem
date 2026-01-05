@@ -51,6 +51,9 @@
         "author": "hydrophobis",
         "category": "Utility",
         "type": "Python",
+        "dependencies": [
+            { "id": "python", "required": true }
+        ],
         "releases": [
             { "version": "1.0.0", "url": "https://raw.githubusercontent.com/hydrophobis/DLLPluginSystem/refs/heads/main/plugins/python/console.py" }
         ]
