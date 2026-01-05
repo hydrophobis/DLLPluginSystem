@@ -1,59 +1,62 @@
 {
   "plugins": [
     {
-      "id": "python-loader",
-      "name": "Python Loader",
-      "description": "Embeds Python 3.14 into the runtime for scripting support.",
-      "author": "hydrophobis",
-      "category": "Language Support",
-      "type": "DLL",
-      "releases": [
-        { "version": "1.0.0", "url": "https://github.com/hydrophobis/DLLPluginSystem/releases/download/v1.0.0/python.dll" }
-      ]
+        "id": "python-loader",
+        "name": "Python Loader",
+        "description": "Embeds Python 3.14 into the runtime for scripting support.",
+        "author": "hydrophobis",
+        "category": "Language Support",
+        "type": "DLL",
+        "releases": [
+            { "version": "1.0.0", "url": "https://github.com/hydrophobis/DLLPluginSystem/releases/download/v1.0.0/python.dll" }
+        ]
     },
     {
-      "id": "heartbeat",
-      "name": "Heartbeat",
-      "description": "Sends a heartbeat signal every second.",
-      "author": "hydrophobis",
-      "category": "Utility",
-      "type": "DLL",
-      "releases": [
-        { "version": "1.0.0", "url": "https://github.com/hydrophobis/DLLPluginSystem/releases/download/v1.0.0/heartbeat.dll" }
-      ]
+        "id": "heartbeat",
+        "name": "Heartbeat",
+        "description": "Sends a heartbeat signal every second.",
+        "author": "hydrophobis",
+        "category": "Utility",
+        "type": "DLL",
+        "releases": [
+            { "version": "1.0.0", "url": "https://github.com/hydrophobis/DLLPluginSystem/releases/download/v1.0.0/heartbeat.dll" }
+        ]
     },
     {
-      "id": "logger",
-      "name": "Logger",
-      "description": "Logs events to a file.",
-      "author": "hydrophobis",
-      "category": "Utility",
-      "type": "DLL",
-      "releases": [
-        { "version": "1.0.0", "url": "https://github.com/hydrophobis/DLLPluginSystem/releases/download/v1.0.0/logger.dll" }
-      ]
+        "id": "logger",
+        "name": "Logger",
+        "description": "Logs events to a file.",
+        "author": "hydrophobis",
+        "category": "Utility",
+        "type": "DLL",
+        "releases": [
+            { "version": "1.0.0", "url": "https://github.com/hydrophobis/DLLPluginSystem/releases/download/v1.0.0/logger.dll" }
+        ]
     },
     {
-      "id": "console",
-      "name": "Console",
-      "description": "Provides an in-app console with some commands.",
-      "author": "hydrophobis",
-      "category": "Utility",
-      "type": "DLL",
-      "releases": [
-        { "version": "1.0.0", "url": "https://github.com/hydrophobis/DLLPluginSystem/releases/download/v1.0.0/console.dll" }
-      ]
+        "id": "console",
+        "name": "Console",
+        "description": "Provides an in-app console with some commands.",
+        "author": "hydrophobis",
+        "category": "Utility",
+        "type": "DLL",
+        "releases": [
+            { "version": "1.0.0", "url": "https://github.com/hydrophobis/DLLPluginSystem/releases/download/v1.0.0/console.dll" }
+        ]
     },
     {
-      "id": "echo-python",
-      "name": "Echo",
-      "description": "A simple echo plugin implemented in Python.",
-      "author": "hydrophobis",
-      "category": "Utility",
-      "type": "Python",
-      "releases": [
-        { "version": "1.0.0", "url": "https://raw.githubusercontent.com/hydrophobis/DLLPluginSystem/refs/heads/main/plugins/python/echo.py" }
-      ]
+        "id": "echo-python",
+        "name": "Echo",
+        "description": "A simple echo plugin implemented in Python.",
+        "author": "hydrophobis",
+        "category": "Utility",
+        "type": "Python",
+        "dependencies": [
+            { "id": "python-loader", "required": true }
+        ],
+        "releases": [
+            { "version": "1.0.0", "url": "https://raw.githubusercontent.com/hydrophobis/DLLPluginSystem/refs/heads/main/plugins/python/echo.py" }
+        ]
     }
   ]
 }

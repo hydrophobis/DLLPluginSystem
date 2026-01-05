@@ -10,23 +10,20 @@
 <body class="bg-gray-900 text-white font-sans antialiased">
 
     <header class="py-10 bg-gray-800 shadow-2xl border-b border-gray-700 sticky top-0 z-50">
-        <div class="max-w-6xl mx-auto px-6">
-            <div class="text-center mb-8">
-                <h1 class="text-4xl font-extrabold text-blue-400 tracking-tight">Plugin Gallery</h1>
-                <p class="text-gray-400 mt-2">Central Repository for DLLPluginSystem Modules</p>
-            </div>
+        <div class="max-w-6xl mx-auto px-6 text-center">
+            <h1 class="text-4xl font-extrabold text-blue-400 tracking-tight">Plugin Gallery</h1>
+            <p class="text-gray-400 mt-2 mb-8">Central Repository for DLLPluginSystem Modules</p>
             
             <div class="flex flex-col md:flex-row gap-4 justify-center items-center">
                 <div class="relative w-full md:w-96">
                     <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-500"></i>
-                    <input type="text" id="search-input" placeholder="Search by name or description..." 
-                           class="w-full bg-gray-950 border border-gray-700 rounded-xl py-3 pl-12 pr-4 focus:outline-none focus:ring-2 focus:ring-blue-500 transition shadow-inner">
+                    <input type="text" id="search-input" placeholder="Search plugins..." 
+                           class="w-full bg-gray-950 border border-gray-700 rounded-xl py-3 pl-12 pr-4 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
                 </div>
                 <select id="filter-type" class="w-full md:w-auto bg-gray-950 border border-gray-700 rounded-xl py-3 px-6 focus:outline-none focus:ring-2 focus:ring-blue-500 transition cursor-pointer">
                     <option value="all">All Platforms</option>
                     <option value="DLL">Windows (.dll)</option>
                     <option value="Python">Python (.py)</option>
-                    <option value="SO">Linux (.so)</option>
                 </select>
             </div>
         </div>
@@ -55,18 +52,32 @@
                 document.getElementById('filter-type').addEventListener('change', handleFilter);
             } catch (error) {
                 console.error('Error:', error);
-                document.getElementById('plugin-list').innerHTML = `
-                    <div class="col-span-full bg-red-900/20 border border-red-900 p-6 rounded-xl text-center">
-                        <i class="fas fa-exclamation-triangle text-red-500 text-2xl mb-2"></i>
-                        <p class="text-red-400">Failed to load plugin catalog. Please check your JSON structure.</p>
-                    </div>`;
+                document.getElementById('plugin-list').innerHTML = `<div class="col-span-full text-center text-red-400 p-10 border border-red-900 rounded-xl bg-red-900/10">Failed to load catalog.</div>`;
             }
+        }
+
+        // --- Core Dependency Resolution Logic ---
+        function getPluginById(id) {
+            return allPlugins.find(p => p.id === id);
+        }
+
+        function resolveDependencies(pluginId, resolved = new Set()) {
+            const plugin = getPluginById(pluginId);
+            if (!plugin || !plugin.dependencies) return resolved;
+
+            plugin.dependencies.forEach(dep => {
+                if (!resolved.has(dep.id)) {
+                    resolved.add(dep.id);
+                    // Recursively resolve child dependencies
+                    resolveDependencies(dep.id, resolved);
+                }
+            });
+            return resolved;
         }
 
         function handleFilter() {
             const searchTerm = document.getElementById('search-input').value.toLowerCase();
             const typeFilter = document.getElementById('filter-type').value;
-
             const filtered = allPlugins.filter(p => {
                 const matchesSearch = p.name.toLowerCase().includes(searchTerm) || p.description.toLowerCase().includes(searchTerm);
                 const matchesType = typeFilter === 'all' || p.type === typeFilter;
@@ -79,64 +90,75 @@
             const container = document.getElementById('plugin-list');
             container.innerHTML = '';
 
-            if (plugins.length === 0) {
-                container.innerHTML = `<p class="text-center col-span-full text-gray-500 py-20">No matching plugins found.</p>`;
-                return;
-            }
-
             plugins.forEach(plugin => {
-                // Determine Icon and Style
-                const typeMap = {
+                const typeStyles = {
                     'Python': { icon: 'fab fa-python', color: 'text-blue-400', bg: 'bg-blue-900/30' },
-                    'DLL': { icon: 'fas fa-window-maximize', color: 'text-gray-300', bg: 'bg-gray-700/50' },
-                    'SO': { icon: 'fab fa-linux', color: 'text-orange-400', bg: 'bg-orange-950/30' }
+                    'DLL': { icon: 'fas fa-window-maximize', color: 'text-gray-300', bg: 'bg-gray-700/50' }
                 };
-                const style = typeMap[plugin.type] || { icon: 'fas fa-puzzle-piece', color: 'text-gray-400', bg: 'bg-gray-800' };
+                const style = typeStyles[plugin.type] || { icon: 'fas fa-puzzle-piece', color: 'text-gray-400', bg: 'bg-gray-800' };
 
-                const versionOptions = plugin.releases.map((rel, i) => 
-                    `<option value="${rel.url}">${rel.version}${i === 0 ? ' (Latest)' : ''}</option>`
-                ).join('');
+                // Dependencies HTML
+                let depHtml = '';
+                if (plugin.dependencies?.length > 0) {
+                    depHtml = `<div class="mt-4 pt-4 border-t border-gray-700/50">
+                        <p class="text-[10px] font-bold text-gray-500 uppercase mb-2">Depends On</p>
+                        <div class="flex flex-wrap gap-2">
+                            ${plugin.dependencies.map(dep => {
+                                const d = getPluginById(dep.id);
+                                return `<span class="text-[10px] px-2 py-0.5 rounded border ${dep.required ? 'border-red-900/50 text-red-400 bg-red-900/10' : 'border-gray-700 text-gray-400 bg-gray-800'}">
+                                    ${dep.required ? '★ ' : ''}${d ? d.name : dep.id}
+                                </span>`;
+                            }).join('')}
+                        </div>
+                    </div>`;
+                }
 
                 container.innerHTML += `
-                    <div class="bg-gray-800 flex flex-col rounded-2xl border border-gray-700 hover:border-blue-500/50 hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-300 overflow-hidden">
+                    <div class="bg-gray-800 flex flex-col rounded-2xl border border-gray-700 hover:border-blue-500/40 transition-all overflow-hidden group">
                         <div class="p-6 flex-grow">
-                            <div class="flex justify-between items-start mb-4">
-                                <h2 class="text-xl font-bold text-white group-hover:text-blue-300 transition-colors">${plugin.name}</h2>
-                                <span class="${style.bg} ${style.color} text-[10px] px-2.5 py-1 rounded-full font-bold uppercase tracking-wider flex items-center">
+                            <div class="flex justify-between items-start mb-3">
+                                <h2 class="text-xl font-bold group-hover:text-blue-300 transition-colors">${plugin.name}</h2>
+                                <span class="${style.bg} ${style.color} text-[10px] px-2 py-1 rounded-md font-bold uppercase tracking-widest flex items-center">
                                     <i class="${style.icon} mr-1.5"></i>${plugin.type}
                                 </span>
                             </div>
-                            <p class="text-gray-400 text-sm leading-relaxed line-clamp-3">${plugin.description}</p>
+                            <p class="text-gray-400 text-sm line-clamp-3 leading-relaxed">${plugin.description}</p>
+                            ${depHtml}
                         </div>
-                        
                         <div class="px-6 pb-6 mt-auto">
-                            <div class="space-y-4">
-                                <div class="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 flex items-center justify-between">
-                                    <span class="text-[10px] text-gray-500 font-bold uppercase">Release</span>
-                                    <select id="select-${plugin.id}" class="bg-transparent text-sm text-blue-400 focus:outline-none font-medium cursor-pointer">
-                                        ${versionOptions}
-                                    </select>
-                                </div>
-
-                                <div class="flex items-center justify-between gap-4">
-                                    <div class="flex items-center text-gray-500">
-                                        <i class="fas fa-user-circle text-xs mr-2"></i>
-                                        <span class="text-xs truncate max-w-[80px]">${plugin.author}</span>
-                                    </div>
-                                    <button onclick="download('${plugin.id}')" 
-                                            class="flex-grow bg-blue-600 hover:bg-blue-500 text-white py-2.5 rounded-xl text-sm font-bold transition-all transform active:scale-95 flex justify-center items-center gap-2 shadow-lg shadow-blue-900/20">
-                                        <i class="fas fa-download text-xs"></i> Get Plugin
-                                    </button>
-                                </div>
+                            <div class="flex flex-col gap-3">
+                                <select id="select-${plugin.id}" class="bg-gray-900 border border-gray-700 rounded-lg py-2 px-3 text-sm text-blue-400 focus:outline-none">
+                                    ${plugin.releases.map(r => `<option value="${r.url}">${r.version}</option>`).join('')}
+                                </select>
+                                <button onclick="downloadWithCheck('${plugin.id}')" 
+                                        class="w-full bg-blue-600 hover:bg-blue-500 py-2.5 rounded-xl text-sm font-bold transition transform active:scale-95 flex justify-center items-center gap-2">
+                                    <i class="fas fa-download"></i> Get Plugin
+                                </button>
                             </div>
                         </div>
                     </div>`;
             });
         }
 
-        function download(id) {
+        function downloadWithCheck(id) {
+            const plugin = getPluginById(id);
+            const depIds = resolveDependencies(id);
+            const requiredDeps = [];
+            
+            // Check which resolved dependencies are strictly required
+            depIds.forEach(depId => {
+                const depPlugin = getPluginById(depId);
+                // In a real app, you'd check if they are already installed locally
+                requiredDeps.push(depPlugin ? depPlugin.name : depId);
+            });
+
+            if (requiredDeps.length > 0) {
+                const proceed = confirm(`${plugin.name} requires the following to be installed:\n\n- ${requiredDeps.join('\n- ')}\n\nProceed to download?`);
+                if (!proceed) return;
+            }
+
             const url = document.getElementById(`select-${id}`).value;
-            if(url) window.location.href = url;
+            window.location.href = url;
         }
 
         init();
