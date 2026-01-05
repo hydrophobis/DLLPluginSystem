@@ -51,7 +51,7 @@ END_PLUGIN_SHUTDOWN()
 
 ```
 
-### Advanced: Handling Manual Shutdown
+### Advanced Programming
 
 If your plugin allocates memory (e.g., `new`, `malloc`), opens file handles, or registers events that must be explicitly detached, you should use `END_PLUGIN()` and provide your own `plugin_shutdown` logic.
 
@@ -74,6 +74,22 @@ expose pluginbhvr void plugin_shutdown() {
     plugin::info("StorageModule shutting down safely.");
 }
 
+```
+You are also not actually forced to use the macros. If you need custom behaviour for plugin info, staring, or stopping, it can be defined like so
+```cpp
+#include "plugin_api.h"
+// "expose" is defined in plugin_api.h and it is just extern "C"
+// "pluginbhvr" is the same but for __declspec(dllexport)
+extern "C" __declspec(dllexport) const PluginInfo* plugin_get_info() {
+    static PluginInfo info = {name, version, ABI_V1, PRIORITY_DEFAULT};
+    return &info;
+}
+extern "C" __declspec(dllexport) bool plugin_init(PluginHost* host) {
+    plugin::g_host = host;
+}
+extern "C" __declspec(dllexport) void plugin_shutdown() {
+    // this example requires no shutdown actions but the method def is still required
+}
 ```
 
 ---

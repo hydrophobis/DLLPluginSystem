@@ -65,7 +65,7 @@ static struct PyModuleDef host_module = { PyModuleDef_HEAD_INIT, "host", NULL, -
 PyMODINIT_FUNC PyInit_host(void) { return PyModule_Create(&host_module); }
 
 expose pluginbhvr const PluginInfo* plugin_get_info() {
-    static PluginInfo info = {"python_loader", "1.0", ABI_V1, PRIORITY_DEFAULT};
+    static PluginInfo info = {"python", "1.0", ABI_V1, PRIORITY_DEFAULT};
     return &info;
 }
 
