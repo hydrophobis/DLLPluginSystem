@@ -1,5 +1,7 @@
 # DLLPluginSystem
 
+---
+
 ## 1. Project Layout
 
 For the runtime to resolve paths correctly, use this structure:
@@ -13,7 +15,7 @@ For the runtime to resolve paths correctly, use this structure:
 
 ## 2. Plugin Configuration (`plugins.ini`)
 
-The host looks for a `[PLUGINS]` section. Specify the filename only; the runtime assumes they are inside the `plugins/` directory. (there is technically a metadata section but I dont use it currently)
+The host looks for a `[PLUGINS]` section. Specify the filename only; the runtime assumes they are inside the `plugins/` directory.
 
 ```ini
 [PLUGINS]
@@ -49,7 +51,7 @@ END_PLUGIN_SHUTDOWN()
 
 ```
 
-### Advanced: Handling Manual Shutdown
+### Advanced Programming
 
 If your plugin allocates memory (e.g., `new`, `malloc`), opens file handles, or registers events that must be explicitly detached, you should use `END_PLUGIN()` and provide your own `plugin_shutdown` logic.
 
@@ -73,6 +75,22 @@ expose pluginbhvr void plugin_shutdown() {
 }
 
 ```
+You are also not actually forced to use the macros. If you need custom behaviour for plugin info, staring, or stopping, it can be defined like so
+```cpp
+#include "plugin_api.h"
+// "expose" is defined in plugin_api.h and it is just extern "C"
+// "pluginbhvr" is the same but for __declspec(dllexport)
+extern "C" __declspec(dllexport) const PluginInfo* plugin_get_info() {
+    static PluginInfo info = {name, version, ABI_V1, PRIORITY_DEFAULT};
+    return &info;
+}
+extern "C" __declspec(dllexport) bool plugin_init(PluginHost* host) {
+    plugin::g_host = host;
+}
+extern "C" __declspec(dllexport) void plugin_shutdown() {
+    // this example requires no shutdown actions but the method def is still required
+}
+```
 
 ---
 
@@ -94,7 +112,7 @@ The header provides inline helpers to simplify calls to the `PluginHost` table.
 
 ## 5. Python Bridge
 
-The `python.cc` embeds a Python interpreter. Scripts in `/plugins/python/` have access to a built-in `host` module.
+The `python_loader.dll` embeds a Python interpreter. Scripts in `/plugins/python/` have access to a built-in `host` module.
 
 **python.ini requirements:**
 
@@ -122,5 +140,6 @@ host.log("INFO", "Python script active.")
 
 ## 6. Technical Constraints
 
-1. **String Ownership**: The `const char*` pointers passed in events are owned by the caller. **Do not** store these pointers. If you need the data later, copy it to a `std::string`.
-2. **Threading**: The current runtime is single-threaded. Event handlers should not perform "blocking" work (like `Sleep()`), or they will freeze the entire host loop. (i plan to fix this soon)
+1. **ABI Compatibility**: The system uses `extern "C"` and `__cdecl` to ensure the Host.exe can talk to DLLs even if they were compiled with different versions of MSVC.
+2. **String Ownership**: The `const char*` pointers passed in events are owned by the caller. **Do not** store these pointers. If you need the data later, copy it to a `std::string`.
+3. **Threading**: The current runtime is single-threaded. Event handlers should not perform "blocking" work (like `Sleep()`), or they will freeze the entire host loop.
