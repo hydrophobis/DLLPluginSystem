@@ -13,7 +13,7 @@ For the runtime to resolve paths correctly, use this structure:
 
 ## 2. Plugin Configuration (`plugins.ini`)
 
-The host looks for a `[PLUGINS]` section. Specify the filename only; the runtime assumes they are inside the `plugins/` directory.
+The host looks for a `[PLUGINS]` section. Specify the filename only; the runtime assumes they are inside the `plugins/` directory. (there is technically a metadata section but I dont use it currently)
 
 ```ini
 [PLUGINS]
