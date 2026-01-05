@@ -3,6 +3,8 @@
 #include <sstream>
 #include <string>
 
+start();
+
 static void handleCommand(const std::string& cmd) {
     std::istringstream iss(cmd);
     std::string token;
@@ -27,7 +29,7 @@ static void handleCommand(const std::string& cmd) {
         }
 
         plugin::info(std::string("Loading plugin: ").append(pluginName).c_str());
-        plugin::g_host->load_plugin(pluginName.c_str());
+        plugin::host->load_plugin(pluginName.c_str());
         return;
     }
 
@@ -41,7 +43,7 @@ static void handleCommand(const std::string& cmd) {
         }
 
         plugin::info(std::string("Unloading plugin: ").append(pluginName).c_str());
-        plugin::g_host->unload_plugin(pluginName.c_str());
+        plugin::host->unload_plugin(pluginName.c_str());
         return;
     }
 
@@ -53,15 +55,19 @@ static void handleCommand(const std::string& cmd) {
     plugin::warn(std::string("Unknown command: ").append(token).c_str());
 }
 
-EVENT_HANDLER(onConsoleInput) {
+event_handler(onConsoleInput) {
     if (!payload) return;
     handleCommand(payload);
 }
 
-BEGIN_PLUGIN("console", "1.0.0")
-    plugin::on("consoleInput", onConsoleInput);
-END_PLUGIN()
+manifest("console", "1.0.0")
 
-expose pluginbhvr void plugin_shutdown() {
+api bool plugin_init(PluginHost* host){
+    sethost();
+    plugin::on("consoleInput", onConsoleInput);
+    return true;
+}
+
+api void plugin_shutdown() {
     plugin::off(onConsoleInput);
 }

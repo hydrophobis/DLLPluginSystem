@@ -5,12 +5,48 @@
 #include <map>
 #include <filesystem>
 #include <iostream>
+#include <algorithm>
 
-static PluginHost* g_host = nullptr;
+static PluginHost* host = nullptr;
 static std::multimap<std::string, PyObject*> python_event_listeners;
 
+manifest("python", "1.0.0")
+start();
+
+struct ScriptState {
+    std::filesystem::file_time_type last_write;
+    std::string module_name;
+};
+static std::map<std::string, ScriptState> watched_scripts;
+
+void check_hot_reload() {
+    namespace fs = std::filesystem;
+    // Iterate over watched files
+    for (auto& [path, state] : watched_scripts) {
+        if (!fs::exists(path)) continue;
+
+        auto current_time = fs::last_write_time(path);
+        if (current_time > state.last_write) {
+            state.last_write = current_time;
+            plugin::host->log("INFO", ("Reloading: " + state.module_name).c_str());
+
+            std::string reloadCmd = 
+                "import sys, importlib\n"
+                "if '" + state.module_name + "' in sys.modules:\n"
+                "    importlib.reload(sys.modules['" + state.module_name + "'])\n";
+            
+            // Note: In a real scenario, you must deregister old events first!
+            // This simple version assumes your python scripts are smart enough 
+            // not to duplicate listeners, or you clear listeners on reload.
+            PyGILState_STATE gstate = PyGILState_Ensure();
+            PyRun_SimpleString(reloadCmd.c_str());
+            PyGILState_Release(gstate);
+        }
+    }
+}
+
 // Proxy for events
-void __cdecl python_event_proxy(const char* eventName, const char* payload) {
+expose void python_event_proxy(const char* eventName, const char* payload) {
     // This ensures the C++ thread safely interacts with the Python interpreter
     PyGILState_STATE gstate = PyGILState_Ensure();
 
@@ -37,7 +73,7 @@ void __cdecl python_event_proxy(const char* eventName, const char* payload) {
 static PyObject* py_log(PyObject* self, PyObject* args) {
     const char *lvl, *msg;
     if (!PyArg_ParseTuple(args, "ss", &lvl, &msg)) return NULL;
-    if (g_host) g_host->log(lvl, msg);
+    if (plugin::host) plugin::host->log(lvl, msg);
     Py_RETURN_NONE;
 }
 
@@ -47,7 +83,7 @@ static PyObject* py_on(PyObject* self, PyObject* args) {
     if (!PyArg_ParseTuple(args, "sO", &event, &callback)) return NULL;
 
     if (python_event_listeners.find(event) == python_event_listeners.end()) {
-        if (g_host) g_host->register_event(event, python_event_proxy);
+        if (plugin::host) plugin::host->register_event(event, python_event_proxy);
     }
 
     Py_INCREF(callback);
@@ -64,89 +100,55 @@ static PyMethodDef HostMethods[] = {
 static struct PyModuleDef host_module = { PyModuleDef_HEAD_INIT, "host", NULL, -1, HostMethods };
 PyMODINIT_FUNC PyInit_host(void) { return PyModule_Create(&host_module); }
 
-expose pluginbhvr const PluginInfo* plugin_get_info() {
-    static PluginInfo info = {"python", "1.0", ABI_V1, PRIORITY_DEFAULT};
-    return &info;
-}
-
-expose pluginbhvr bool plugin_init(PluginHost* host) {
-    g_host = host;
-    
-    std::string home_path = "python"; // Default value
-    auto ini_entries = parse_ini("plugins/python/python.ini", "PYTHON");
-
-    for (const auto& entry : ini_entries) {
-        size_t eq_pos = entry.find('=');
-        if (eq_pos != std::string::npos) {
-            std::string key = entry.substr(0, eq_pos);
-            std::string value = entry.substr(eq_pos + 1);
-
-            if (key == "HOME") { // Specifically look for the HOME key
-                home_path = value;
-                break; 
-            }
-        }
-    }
-
-    // Use a static buffer to ensure the pointer remains valid for Python
-    static std::wstring pyHome;
-    
-    // Better way to convert string to wstring (handling potential encoding)
-    pyHome.assign(home_path.begin(), home_path.end()); 
-    
-    Py_SetPythonHome(pyHome.c_str());
-    
-    std::wcout << L"[Python Loader] Python home set to: " << pyHome << std::endl;
+api bool plugin_init(PluginHost* host) {
+    sethost();
 
     if (PyImport_AppendInittab("host", PyInit_host) == -1) {
-        g_host->log("ERROR", "Could not extend python inittab");
+        plugin::host->log("ERROR", "Could not extend python inittab");
         return false;
     }
 
     Py_Initialize();
 
-    // Give Python the absolute path to your scripts
-    PyRun_SimpleString("import sys, os; sys.path.append(os.path.abspath('plugins/python'))");
+    // 1. Setup path so Python can find scripts in 'plugins/python'
+    // We use PyRun to set up sys.path easily
+    PyRun_SimpleString(
+        "import sys, os\n"
+        "sys.path.append(os.path.abspath('plugins/python'))\n"
+    );
 
     namespace fs = std::filesystem;
     std::string scriptDir = "plugins/python/";
     
     if (fs::exists(scriptDir)) {
         for (const auto& entry : fs::directory_iterator(scriptDir)) {
-            if (entry.path().extension() == ".py") {
-                std::string fullPath = entry.path().string();
-                // Normalize path separators for Python (Windows backslashes to forward slashes)
-                std::replace(fullPath.begin(), fullPath.end(), '\\', '/');
+            if (entry.path().extension() == ".py" && entry.path().filename() != "api.py") {
 
-                g_host->log("INFO", ("Executing script: " + fullPath).c_str());
+                std::string moduleName = entry.path().stem().string();
+                
+                plugin::host->log("INFO", ("Importing Module: " + moduleName).c_str());
 
-                // Build a Python snippet to read and execute the file
-                // This provides much better error reporting than PyImport
-                std::string loaderCmd = 
-                    "try:\n"
-                    "    with open('" + fullPath + "', 'r') as f:\n"
-                    "        exec(f.read(), globals())\n"
-                    "except Exception as e:\n"
-                    "    print(f'PYTHON ERROR in " + fullPath + ": {e}')\n"
-                    "    import traceback\n"
-                    "    traceback.print_exc()";
-
-                if (PyRun_SimpleString(loaderCmd.c_str()) != 0) {
-                    g_host->log("ERROR", "Python interpreter failed to handle the execution command.");
+                PyObject* pName = PyUnicode_FromString(moduleName.c_str());
+                PyObject* pModule = PyImport_Import(pName);
+                
+                if (pModule == nullptr) {
+                    PyErr_Print();
+                    plugin::host->log("ERROR", ("Failed to load: " + moduleName).c_str());
                 } else {
-                    g_host->log("INFO", "Script execution block finished.");
+                    Py_DECREF(pModule);
                 }
+                Py_DECREF(pName);
             }
         }
     }
     return true;
 }
 
-expose pluginbhvr void plugin_shutdown() {
-    g_host->log("INFO", "Python Loader shutting down...");
+api void plugin_shutdown() {
+    plugin::host->log("INFO", "Python Loader shutting down...");
 
-    if (g_host) {
-        g_host->unregister_event(python_event_proxy);
+    if (plugin::host) {
+        plugin::host->unregister_event(python_event_proxy);
     }
 
     PyGILState_STATE gstate = PyGILState_Ensure();
@@ -157,5 +159,5 @@ expose pluginbhvr void plugin_shutdown() {
     PyGILState_Release(gstate);
 
     Py_Finalize();
-    g_host = nullptr;
+    plugin::host = nullptr;
 }

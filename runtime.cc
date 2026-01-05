@@ -1,23 +1,28 @@
 #include <iostream>
 #include <string>
-#include <libloaderapi.h>
 #include <fstream>
-#include <conio.h>
 #include <chrono>
 #include <unordered_map>
 #include <functional>
 #include <vector>
 #include <algorithm>
 
-#define PLUGIN_DIR "plugins/"
+// Define plugin directory based on OS
+#ifdef _WIN32
+    #define PLUGIN_DIR "plugins\\"
+#else
+    #define PLUGIN_DIR "./plugins/"
+#endif
+
 #define TRACE(msg) std::cout << "[TRACE] " << msg << std::endl;
 #define ERROR(msg) std::cerr << "[ERROR] " << msg << std::endl;
 
 #include "plugin_api.h"
 #include "ini.h"
-#include <WinUser.h>
-#include <synchapi.h>
-//#include "ocular.h"
+#include "ABI_compat_layer.h" // New compatibility layer
+
+// --- [Previous EventBus, Storage, and Timer Classes remain identical] ---
+// (They are standard C++ and do not need changes)
 
 class EventBus {
 public:
@@ -27,7 +32,6 @@ public:
         listeners[eventName].push_back(cb);
     }
 
-    // Add this method
     void unregister_all_by_callback(event_callback_t cb) {
         for (auto& pair : listeners) {
             auto& vec = pair.second;
@@ -39,7 +43,7 @@ public:
         auto it = listeners.find(eventName);
         if (it != listeners.end()) {
             for (auto& cb : it->second) {
-                cb(eventName, payload); // <--- Crash happens here without cleanup
+                cb(eventName, payload);
             }
         }
     }
@@ -128,7 +132,6 @@ public:
             }
         }
         
-        // Remove inactive timers
         timers.erase(
             std::remove_if(timers.begin(), timers.end(), 
                 [](const Timer& t) { return !t.active; }),
@@ -143,10 +146,12 @@ void host_log(const char* level, const char* message) {
     std::cout << "[" << level << "] " << message << std::endl;
 }
 
+// --- [Plugin Class Refactored for ABI Layer] ---
+
 class Plugin {
 public:
     std::string name;
-    HMODULE handle;
+    PluginHandle handle; // Changed from HMODULE
 
     plugin_get_info_t getInfo;
     plugin_init_t init;
@@ -157,19 +162,32 @@ public:
           getInfo(nullptr), init(nullptr), shutdown(nullptr) {}
 
     bool load() {
-        handle = LoadLibraryA((PLUGIN_DIR + name).c_str());
+        std::string fullPath = PLUGIN_DIR + name;
+        
+        // Linux specific: dlopen usually requires ./ for local files if not in LD_PATH
+        // The PLUGIN_DIR definition handles this, but user must ensure .so extension in INI or here
+        
+        handle = PLATFORM_LOAD_LIB(fullPath.c_str());
+        
         if (!handle) {
+            // Optional: Print dlerror() on Linux for debugging
+            #ifndef _WIN32
+            const char* err = dlerror();
+            if(err) std::cerr << "dlopen error: " << err << std::endl;
+            #endif
+            
             std::cerr << "Failed to load plugin: " << name << std::endl;
             return false;
         }
 
-        getInfo = (plugin_get_info_t)GetProcAddress(handle, "plugin_get_info");
-        init = (plugin_init_t)GetProcAddress(handle, "plugin_init");
-        shutdown = (plugin_shutdown_t)GetProcAddress(handle, "plugin_shutdown");
+        // Use PLATFORM_GET_PROC macro
+        getInfo = (plugin_get_info_t)PLATFORM_GET_PROC(handle, "plugin_get_info");
+        init = (plugin_init_t)PLATFORM_GET_PROC(handle, "plugin_init");
+        shutdown = (plugin_shutdown_t)PLATFORM_GET_PROC(handle, "plugin_shutdown");
 
         if (!getInfo || !init || !shutdown) {
             std::cerr << "Plugin missing required exports: " << name << std::endl;
-            FreeLibrary(handle);
+            PLATFORM_FREE_LIB(handle);
             return false;
         }
 
@@ -179,7 +197,7 @@ public:
 
         if (!init(&host)) {
             std::cerr << "Plugin failed to initialize: " << name << std::endl;
-            FreeLibrary(handle);
+            PLATFORM_FREE_LIB(handle);
             return false;
         }
 
@@ -189,12 +207,12 @@ public:
     void unload() {
         if (handle) {
             shutdown();
-            FreeLibrary(handle);
+            PLATFORM_FREE_LIB(handle);
             std::cout << "Unloaded plugin: " << name << std::endl;
         }
     }
 
-    // Host callback implementations
+    // Host callback implementations (Identical)
     static void __cdecl host_send_event(const char* eventName, const char* payload) {
         EVENT_BUS.send_event(eventName, payload);
     }
@@ -274,7 +292,7 @@ public:
 };
 
 int main() {
-    std::cout << "[Runtime] Starting plugin host..." << std::endl;
+    std::cout << "[Runtime] Starting plugin host (" << WINLIN("Windows", "Linux") << ")..." << std::endl;
 
     std::vector<Plugin> loadedPlugins;
     Plugin::g_plugins = &loadedPlugins;
@@ -322,53 +340,52 @@ int main() {
         loadedPlugins.push_back(std::move(plugin));
     }
 
-    std::cout << "[Runtime] Entering main loop..." << std::endl;
+    std::cout << "[Runtime] Entering main loop (Press ESC to quit)..." << std::endl;
     std::cout << "> ";
+    std::cout.flush(); // Ensure prompt is visible
 
     bool running = true;
     std::string inputBuffer;
 
     while (running) {
-        // Update timers
         TIMER_MANAGER.update();
         
-        // Send periodic tick event
         EVENT_BUS.send_event("tick", "16ms");
 
-        // Handle keyboard input
-        if (_kbhit()) {
-            int ch = _getch();
+        // Cross-platform input handling using ABI layer
+        if (platform_kbhit()) {
+            int ch = platform_getch();
 
-            if (ch == '\r') {
+            if (ch == 27) { // ESC key (Standard ASCII)
+                 std::cout << "\n[Runtime] ESC pressed, shutting down..." << std::endl;
+                 running = false;
+            }
+            else if (ch == '\r' || ch == '\n') { // Enter
                 if (!inputBuffer.empty()) {
                     std::cout << std::endl;
                     EVENT_BUS.send_event("consoleInput", inputBuffer.c_str());
                     inputBuffer.clear();
                 }
                 std::cout << "> ";
+                std::cout.flush();
             }
-            else if (ch == '\b') {
+            else if (ch == '\b' || ch == 127) { // Backspace (127 is common on Linux)
                 if (!inputBuffer.empty()) {
                     inputBuffer.pop_back();
                     std::cout << "\b \b";
+                    std::cout.flush();
                 }
             }
             else if (ch >= 32 && ch <= 126) {
                 inputBuffer.push_back((char)ch);
                 std::cout << (char)ch;
+                std::cout.flush();
             }
         }
 
-        // ESC to quit
-        if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) {
-            std::cout << "\n[Runtime] ESC pressed, shutting down..." << std::endl;
-            running = false;
-        }
-
-        Sleep(16);
+        PLATFORM_SLEEP_MS(16);
     }
 
-    // Unload plugins
     for (auto& plugin : loadedPlugins) {
         plugin.unload();
     }

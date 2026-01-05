@@ -1,4 +1,10 @@
 *.exe
 *.dll
 compile.bat
+runtime
+*.so
+*.o
 plugins/python/python.ini
+__pycache__
+.vscode
+!libs/*

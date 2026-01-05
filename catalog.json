@@ -1,25 +1,25 @@
 {
   "plugins": [
     {
-        "id": "python-loader",
+        "id": "python",
         "name": "Python Loader",
         "description": "Embeds Python 3.14 into the runtime for scripting support.",
         "author": "hydrophobis",
         "category": "Language Support",
         "type": "DLL",
         "releases": [
-            { "version": "1.0.0", "url": "https://github.com/hydrophobis/DLLPluginSystem/releases/download/v1.0.0/python.dll" }
+            { "version": "Recent", "url": "https://github.com/hydrophobis/DLLPluginSystem/releases/download/v1.0.0/python.dll" }
         ]
     },
     {
-        "id": "heartbeat",
-        "name": "Heartbeat",
-        "description": "Sends a heartbeat signal every second.",
+        "id": "python-linux",
+        "name": "Python Loader (Linux)",
+        "description": "Embeds Python 3.12 into the runtime for scripting support.",
         "author": "hydrophobis",
-        "category": "Utility",
-        "type": "DLL",
+        "category": "Language Support",
+        "type": "SO",
         "releases": [
-            { "version": "1.0.0", "url": "https://github.com/hydrophobis/DLLPluginSystem/releases/download/v1.0.0/heartbeat.dll" }
+            { "version": "Recent", "url": "https://raw.githubusercontent.com/hydrophobis/DLLPluginSystem/refs/heads/main/libs/python.so" }
         ]
     },
     {
@@ -31,6 +31,17 @@
         "type": "DLL",
         "releases": [
             { "version": "1.0.0", "url": "https://github.com/hydrophobis/DLLPluginSystem/releases/download/v1.0.0/console.dll" }
+        ]
+    },
+    {
+        "id": "console-linux",
+        "name": "Console (Linux)",
+        "description": "Provides an in-app console with some commands.",
+        "author": "hydrophobis",
+        "category": "Utility",
+        "type": "SO",
+        "releases": [
+            { "version": "1.0.0", "url": "https://raw.githubusercontent.com/hydrophobis/DLLPluginSystem/refs/heads/main/libs/console.so" }
         ]
     },
     {

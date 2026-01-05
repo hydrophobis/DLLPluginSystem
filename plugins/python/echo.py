@@ -1,8 +1,5 @@
-import host
+import api
 
-host.log("INFO", "Echo plugin loaded.")
-
+@api.on("consoleInput")
 def on_input(event, payload):
-    host.log("INFO", f"Input received: {payload}")
-
-host.on("consoleInput", on_input)
+    api.log(f"Input received: {payload} added", api.INFO)
