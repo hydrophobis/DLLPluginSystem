@@ -15,6 +15,8 @@
 
 #include "plugin_api.h"
 #include "ini.h"
+#include <WinUser.h>
+#include <synchapi.h>
 //#include "ocular.h"
 
 class EventBus {
