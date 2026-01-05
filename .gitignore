@@ -7,4 +7,8 @@ runtime
 plugins/python/python.ini
 __pycache__
 .vscode
+*.class
+*.jar
+
+
 !libs/*
