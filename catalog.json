@@ -52,10 +52,10 @@
         "category": "Utility",
         "type": "Python",
         "dependencies": [
-            { "id": "python-loader", "required": true }
+            { "id": "python", "required": true }
         ],
         "releases": [
-            { "version": "1.0.0", "url": "https://raw.githubusercontent.com/hydrophobis/DLLPluginSystem/refs/heads/main/plugins/python/echo.py" }
+            { "version": "Recent", "url": "https://raw.githubusercontent.com/hydrophobis/DLLPluginSystem/refs/heads/main/plugins/python/echo.py" }
         ]
     }
   ]
