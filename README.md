@@ -107,9 +107,9 @@ api.log("INFO", "Python script active.")
 ---
 ## 6. Planned language supports
 (in order of when i plan to do them)
-1. Rust
-2. JavaScript
-3. Lua
+1. JavaScript
+2. Lua
+3. Java(?)
 ---
 
 ## 7. Technical Constraints
