@@ -6,28 +6,22 @@
 
 For the runtime to resolve paths correctly, use this structure:
 
-* **Host.exe**: The main runtime.
+* **runtime.exe/runtime**: The main runtime.
 * **plugins.ini**: Configuration file for loading order.
-* **/plugins/**: C++ `.dll` files.
-* **/plugins/python/**: `.py` scripts + `python.ini`.
+* **/plugins/**: `.dll` or `.so` files.
+* **/plugins/python/**: `.py` scripts. (if using the python plugin)
 
 ---
 
 ## 2. Plugin Configuration (`plugins.ini`)
 
-The host looks for a `[PLUGINS]` section. Specify the filename only; the runtime assumes they are inside the `plugins/` directory.
+The host looks for a `[PLUGINS]` section. Specify the filename only; the runtime assumes they are inside the `plugins/` directory. I include in mine a metadata section but this is not used currently
 
 ```ini
 [PLUGINS]
 Console=console.dll
 Python=python.dll
-
 ```
-
----
-
-I've reorganized the documentation so that it starts with the standard initialization and concludes with the more advanced shutdown logic. I also took the liberty of fixing a small syntax error in your shutdown example (adding a missing semicolon) to keep the code snippet clean.
-
 ---
 
 ## 3. C++ Plugin Development
@@ -36,42 +30,25 @@ Include `plugin_api.h` in your project. This header defines the `PluginHost` int
 
 ### Metadata & Initialization
 
-Every plugin must define its identity and initialize the host pointer. For basic plugins that don't require manual memory management, use the standard registration macros:
+Every plugin must define its identity and initialize the host in order to create and subscribe to events.
 
 ```cpp
 #include "plugin_api.h"
 
-BEGIN_PLUGIN("MyPlugin", "1.0.0")
+manifest("MyPlugin", "1.0.0");
+
+api bool plugin_init(PluginHost* host){
+    sethost(host);
+
     // Register dependencies if needed
-    DEPENDENCY("logger.dll", DEP_TYPE_REQUIRED)
-    DEPENDENCY("logger.dll", DEP_TYPE_OPTIONAL)
+    dependency("logger.dll", DEP_TYPE_REQUIRED)
+    dependency("python.dll", DEP_TYPE_OPTIONAL)
 
-// Use this macro if your plugin doesn't require custom cleanup logic
-END_PLUGIN_SHUTDOWN() 
+    return true; // RETURN TYPES CANNOT BE INFERRED
+}
 
-```
-
-### Advanced Programming
-
-If your plugin allocates memory (e.g., `new`, `malloc`), opens file handles, or registers events that must be explicitly detached, you should use `END_PLUGIN()` and provide your own `plugin_shutdown` logic.
-
-This ensures that all resources are released before the DLL is unloaded from memory.
-
-```cpp
-#include "plugin_api.h"
-
-BEGIN_PLUGIN("StorageModule", "1.0.0")
-    // Initialization logic here
-    plugin::on("consoleInput", OnConsoleInput);
-END_PLUGIN()
-
-// This function is called by the host during the unloading process
-expose pluginbhvr void plugin_shutdown() {
-    // Unregister listeners
-    plugin::off(OnConsoleInput);
-    
-    // Perform any manual memory cleanup or close file handles here
-    plugin::info("StorageModule shutting down safely.");
+api void plugin_shutdown(){
+    return;
 }
 
 ```
@@ -112,34 +89,30 @@ The header provides inline helpers to simplify calls to the `PluginHost` table.
 
 ## 5. Python Bridge
 
-The `python_loader.dll` embeds a Python interpreter. Scripts in `/plugins/python/` have access to a built-in `host` module.
-
-**python.ini requirements:**
-
-```ini
-[PYTHON]
-HOME=C:/Path/To/PythonInstallation # Must contain python3x.dll
-
-```
+The `python.dll` embeds a Python interpreter. Scripts in `/plugins/python/` can use the supplied api.py file.
 
 **Example Script (`script.py`):**
 
 ```python
-import host
+import api
 
+@api.on("tick")
 def handle_tick(name, payload):
     # 'payload' contains "16ms"
     pass
 
-host.on("tick", handle_tick)
-host.log("INFO", "Python script active.")
+api.log("INFO", "Python script active.")
 
 ```
-
+---
+## 6. Planned language supports
+(in order of when i plan to do them)
+1. Rust
+2. JavaScript
+3. Lua
 ---
 
-## 6. Technical Constraints
+## 7. Technical Constraints
 
-1. **ABI Compatibility**: The system uses `extern "C"` and `__cdecl` to ensure the Host.exe can talk to DLLs even if they were compiled with different versions of MSVC.
-2. **String Ownership**: The `const char*` pointers passed in events are owned by the caller. **Do not** store these pointers. If you need the data later, copy it to a `std::string`.
-3. **Threading**: The current runtime is single-threaded. Event handlers should not perform "blocking" work (like `Sleep()`), or they will freeze the entire host loop.
+1. **String Ownership**: The `const char*` pointers passed in events are owned by the caller. **Do not** store these pointers. If you need the data later, copy it to a `std::string`.
+2. **Threading**: The current runtime is single-threaded. Event handlers should not perform "blocking" work (like `Sleep()`), or they will freeze the entire host loop.
