@@ -23,17 +23,6 @@
         ]
     },
     {
-        "id": "logger",
-        "name": "Logger",
-        "description": "Logs events to a file.",
-        "author": "hydrophobis",
-        "category": "Utility",
-        "type": "DLL",
-        "releases": [
-            { "version": "1.0.0", "url": "https://github.com/hydrophobis/DLLPluginSystem/releases/download/v1.0.0/logger.dll" }
-        ]
-    },
-    {
         "id": "console",
         "name": "Console",
         "description": "Provides an in-app console with some commands.",
