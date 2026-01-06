@@ -28,6 +28,13 @@ Python=python.dll
 
 Include `plugin_api.h` in your project. This header defines the `PluginHost` interface and helper macros.
 
+### Compilation
+
+I use clang version 20.1.0 with the target x86_64-pc-windows-msvc to compile C++ plugins. the command is just `clang++.exe <plugin file> -o <output name>.dll -shared -std=c++20` (linux: `clang++ -fPIC -shared -o lib<output name>.so <plugin file> -std=c++20`)
+
+If you are compiling the Python plugin you need to add an include path and link it something like this if you use [this](https://www.python.org/downloads/release/python-3142/) python download page and scroll down to the bottom for your appropriate version it should install to `%USERPROFILE%\AppData\Local\Python\pythoncore-3.14-64` although the final dir may need to be changed depending on various factors. You will probably also need to put that directory in your PATH<br>**Command:**<br>
+`clang++.exe <plugin file> -o <output name>.dll -shared -I"$env:USERPROFILE\AppData\Local\Python\pythoncore-3.14-64\include" -L"$env:USERPROFILE\AppData\Local\Python\pythoncore-3.14-64\libs" -lpython314 -std=c++20`
+
 ### Metadata & Initialization
 
 Every plugin must define its identity and initialize the host in order to create and subscribe to events.

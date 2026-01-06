@@ -23,6 +23,20 @@
         ]
     },
     {
+        "id": "plugin-manager",
+        "name": "Plugin Manager",
+        "description": "Provides a graphical interface to manage plugins.",
+        "author": "hydrophobis",
+        "category": "Utility",
+        "type": "Python",
+        "dependencies": [
+            { "id": "python", "required": true }
+        ],
+        "releases": [
+            { "version": "Recent", "url": "https://raw.githubusercontent.com/hydrophobis/DLLPluginSystem/refs/heads/main/libs/manager.py" }
+        ]
+    },
+    {
         "id": "console",
         "name": "Console",
         "description": "Provides an in-app console with some commands.",
@@ -41,7 +55,7 @@
         "category": "Utility",
         "type": "SO",
         "releases": [
-            { "version": "1.0.0", "url": "https://raw.githubusercontent.com/hydrophobis/DLLPluginSystem/refs/heads/main/libs/console.so" }
+            { "version": "Recent", "url": "https://raw.githubusercontent.com/hydrophobis/DLLPluginSystem/refs/heads/main/libs/console.so" }
         ]
     },
     {
@@ -55,7 +69,7 @@
             { "id": "python", "required": true }
         ],
         "releases": [
-            { "version": "1.0.0", "url": "https://raw.githubusercontent.com/hydrophobis/DLLPluginSystem/refs/heads/main/libs/console.py" }
+            { "version": "Recent", "url": "https://raw.githubusercontent.com/hydrophobis/DLLPluginSystem/refs/heads/main/libs/console.py" }
         ]
     }
   ]
