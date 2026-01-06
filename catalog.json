@@ -8,7 +8,7 @@
         "category": "Language Support",
         "type": "DLL",
         "releases": [
-            { "version": "Recent", "url": "https://github.com/hydrophobis/DLLPluginSystem/releases/download/v1.0.0/python.dll" }
+            { "version": "2.0.0", "url": "https://github.com/hydrophobis/DLLPluginSystem/releases/download/v1.0.0/python.dll" }
         ]
     },
     {
