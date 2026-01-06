@@ -7,23 +7,18 @@
 #include <vector>
 #include <algorithm>
 
-// Define plugin directory based on OS
+// Define plugin directory 
 #ifdef _WIN32
     #define PLUGIN_DIR "plugins\\"
 #else
     #define PLUGIN_DIR "./plugins/"
 #endif
 
-#define TRACE(msg) std::cout << "[TRACE] " << msg << std::endl;
-#define ERROR(msg) std::cerr << "[ERROR] " << msg << std::endl;
-
 #include "plugin_api.h"
 #include "ini.h"
-#include "ABI_compat_layer.h" // New compatibility layer
+#include "ABI_compat_layer.h"
 
-// --- [Previous EventBus, Storage, and Timer Classes remain identical] ---
-// (They are standard C++ and do not need changes)
-
+// Global event transport and storage
 class EventBus {
 public:
     std::unordered_map<std::string, std::vector<event_callback_t>> listeners;
@@ -49,8 +44,10 @@ public:
     }
 };
 
+// Global bus
 EventBus EVENT_BUS;
 
+// Simple key-value storage
 class Storage {
 public:
     std::unordered_map<std::string, std::string> data;
@@ -146,12 +143,11 @@ void host_log(const char* level, const char* message) {
     std::cout << "[" << level << "] " << message << std::endl;
 }
 
-// --- [Plugin Class Refactored for ABI Layer] ---
-
+// Plugin wrapper
 class Plugin {
 public:
     std::string name;
-    PluginHandle handle; // Changed from HMODULE
+    PluginHandle handle;
 
     plugin_get_info_t getInfo;
     plugin_init_t init;
@@ -164,13 +160,9 @@ public:
     bool load() {
         std::string fullPath = PLUGIN_DIR + name;
         
-        // Linux specific: dlopen usually requires ./ for local files if not in LD_PATH
-        // The PLUGIN_DIR definition handles this, but user must ensure .so extension in INI or here
-        
         handle = PLATFORM_LOAD_LIB(fullPath.c_str());
         
         if (!handle) {
-            // Optional: Print dlerror() on Linux for debugging
             #ifndef _WIN32
             const char* err = dlerror();
             if(err) std::cerr << "dlopen error: " << err << std::endl;
@@ -180,7 +172,6 @@ public:
             return false;
         }
 
-        // Use PLATFORM_GET_PROC macro
         getInfo = (plugin_get_info_t)PLATFORM_GET_PROC(handle, "plugin_get_info");
         init = (plugin_init_t)PLATFORM_GET_PROC(handle, "plugin_init");
         shutdown = (plugin_shutdown_t)PLATFORM_GET_PROC(handle, "plugin_shutdown");
@@ -212,7 +203,7 @@ public:
         }
     }
 
-    // Host callback implementations (Identical)
+    // Host callbacks
     static void __cdecl host_send_event(const char* eventName, const char* payload) {
         EVENT_BUS.send_event(eventName, payload);
     }
@@ -275,6 +266,7 @@ public:
         return false;
     }
 
+    // Host pointers
     PluginHost host = {
         host_send_event,
         host_register_event,
@@ -352,11 +344,11 @@ int main() {
         
         EVENT_BUS.send_event("tick", "16ms");
 
-        // Cross-platform input handling using ABI layer
+        // Cross-platform input handling from ABI layer
         if (platform_kbhit()) {
             int ch = platform_getch();
 
-            if (ch == 27) { // ESC key (Standard ASCII)
+            if (ch == 27) { // ESC
                  std::cout << "\n[Runtime] ESC pressed, shutting down..." << std::endl;
                  running = false;
             }
@@ -369,7 +361,7 @@ int main() {
                 std::cout << "> ";
                 std::cout.flush();
             }
-            else if (ch == '\b' || ch == 127) { // Backspace (127 is common on Linux)
+            else if (ch == '\b' || ch == 127) { // Backspace
                 if (!inputBuffer.empty()) {
                     inputBuffer.pop_back();
                     std::cout << "\b \b";

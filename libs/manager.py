@@ -43,6 +43,7 @@ class PluginManagerGUI:
         self.loaded_plugins = set()
         self.filter_type = "all"
         self.search_term = ""
+        self.listbox_plugin_map = []  # Maps listbox index to plugin
         
         # Styling
         self.setup_styles()
@@ -217,11 +218,17 @@ class PluginManagerGUI:
             return
         
         try:
+            # Scan for DLL and SO files in plugins/
             for file in os.listdir(PLUGIN_DIR):
-                if file.endswith(('.dll', '.so', '.py')):
-                    # Extract base name without extension
-                    base_name = os.path.splitext(file)[0]
-                    self.installed_plugins.add(base_name)
+                if file.endswith(('.dll', '.so')):
+                    self.installed_plugins.add(file)
+            
+            # Scan for Python files in plugins/python/
+            python_dir = os.path.join(PLUGIN_DIR, "python")
+            if os.path.exists(python_dir):
+                for file in os.listdir(python_dir):
+                    if file.endswith('.py'):
+                        self.installed_plugins.add(file)
             
             api.log(f"Found {len(self.installed_plugins)} installed plugins", api.INFO)
         except Exception as e:
@@ -236,6 +243,7 @@ class PluginManagerGUI:
     def populate_list(self):
         """Populate the plugin list with filtered results"""
         self.plugin_listbox.delete(0, tk.END)
+        self.listbox_plugin_map = []  # Clear the mapping
         
         for plugin in self.catalog.get("plugins", []):
             # Apply filters
@@ -260,11 +268,23 @@ class PluginManagerGUI:
             
             display = f"{status} {type_icon} {plugin['name']}"
             self.plugin_listbox.insert(tk.END, display)
+            self.listbox_plugin_map.append(plugin)  # Store the plugin reference
     
     def is_plugin_installed(self, plugin):
         """Check if a plugin is installed"""
         plugin_id = plugin.get("id", "")
-        return plugin_id in self.installed_plugins
+        plugin_type = plugin.get("type", "")
+        
+        extensions = {
+            "DLL": ".dll",
+            "Python": ".py",
+            "SO": ".so"
+        }
+        
+        ext = extensions.get(plugin_type, "")
+        filename = f"{plugin_id}{ext}"
+        
+        return filename in self.installed_plugins
     
     def get_selected_plugin(self):
         """Get the currently selected plugin data"""
@@ -272,13 +292,10 @@ class PluginManagerGUI:
         if not selection:
             return None
         
-        # Get the actual index in filtered results
-        selected_text = self.plugin_listbox.get(selection[0])
-        
-        # Find matching plugin
-        for plugin in self.catalog.get("plugins", []):
-            if plugin["name"] in selected_text:
-                return plugin
+        # Use the mapping to get the correct plugin
+        index = selection[0]
+        if 0 <= index < len(self.listbox_plugin_map):
+            return self.listbox_plugin_map[index]
         return None
     
     def on_plugin_select(self, event):
@@ -380,10 +397,17 @@ class PluginManagerGUI:
                 
                 url = releases[0]["url"]
                 filename = url.split("/")[-1]
-                filepath = os.path.join(PLUGIN_DIR, filename)
                 
-                # Create plugins directory if needed
-                os.makedirs(PLUGIN_DIR, exist_ok=True)
+                # Python plugins go in plugins/python/ subdirectory
+                if plugin.get("type") == "Python":
+                    install_dir = os.path.join(PLUGIN_DIR, "python")
+                else:
+                    install_dir = PLUGIN_DIR
+                
+                filepath = os.path.join(install_dir, filename)
+                
+                # Create directory if needed
+                os.makedirs(install_dir, exist_ok=True)
                 
                 # Download file
                 with urllib.request.urlopen(url, timeout=30) as response:
@@ -439,7 +463,13 @@ class PluginManagerGUI:
             }
             
             ext = extensions.get(plugin_type, "")
-            filepath = os.path.join(PLUGIN_DIR, f"{plugin_id}{ext}")
+            filename = f"{plugin_id}{ext}"
+            
+            # Python plugins are in plugins/python/ subdirectory
+            if plugin_type == "Python":
+                filepath = os.path.join(PLUGIN_DIR, "python", filename)
+            else:
+                filepath = os.path.join(PLUGIN_DIR, filename)
             
             if os.path.exists(filepath):
                 os.remove(filepath)
@@ -477,6 +507,10 @@ class PluginManagerGUI:
         
         ext = extensions.get(plugin_type, "")
         filename = f"{plugin_id}{ext}"
+        
+        # Python plugins are in python/ subdirectory
+        if plugin_type == "Python":
+            filename = f"python/{filename}"
         
         try:
             # Use the host's load_plugin function

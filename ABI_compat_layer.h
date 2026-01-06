@@ -3,7 +3,8 @@
 
 #ifdef _WIN32
     #define WINLIN(windows, linux) windows
-    #define _WINSOCKAPI_   /* Prevent inclusion of winsock.h in windows.h */
+    // Do not include winsock
+    #define _WINSOCKAPI_
     #include <windows.h>
     #include <libloaderapi.h>
     #include <synchapi.h>
@@ -20,7 +21,7 @@
     // System
     #define PLATFORM_SLEEP_MS(ms) Sleep(ms)
     
-    // Input (already exists in conio.h, just mapping/wrapping if needed)
+    // Input
     inline int platform_kbhit() { return _kbhit(); }
     inline int platform_getch() { return _getch(); }
 
@@ -37,7 +38,6 @@
     typedef void* PluginHandle;
 
     // Library Loading
-    // RTLD_LAZY is standard for plugins
     #define PLATFORM_LOAD_LIB(path) dlopen(path, RTLD_LAZY)
     #define PLATFORM_GET_PROC(handle, name) dlsym(handle, name)
     #define PLATFORM_FREE_LIB(handle) dlclose(handle)
@@ -65,7 +65,6 @@
         }
     }
 
-    // Helper to setup terminal for non-canonical input (raw mode)
     // This allows reading chars without hitting enter
     struct TermSetup {
         struct termios oldt;

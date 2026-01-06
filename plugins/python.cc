@@ -35,9 +35,6 @@ void check_hot_reload() {
                 "if '" + state.module_name + "' in sys.modules:\n"
                 "    importlib.reload(sys.modules['" + state.module_name + "'])\n";
             
-            // Note: In a real scenario, you must deregister old events first!
-            // This simple version assumes your python scripts are smart enough 
-            // not to duplicate listeners, or you clear listeners on reload.
             PyGILState_STATE gstate = PyGILState_Ensure();
             PyRun_SimpleString(reloadCmd.c_str());
             PyGILState_Release(gstate);
@@ -47,7 +44,6 @@ void check_hot_reload() {
 
 // Proxy for events
 expose void python_event_proxy(const char* eventName, const char* payload) {
-    // This ensures the C++ thread safely interacts with the Python interpreter
     PyGILState_STATE gstate = PyGILState_Ensure();
 
     auto range = python_event_listeners.equal_range(eventName);
@@ -59,7 +55,7 @@ expose void python_event_proxy(const char* eventName, const char* payload) {
 
             if (result == NULL) {
                 fprintf(stderr, "[Python Error in %s]:\n", eventName);
-                PyErr_Print(); // This prints the traceback to your console
+                PyErr_Print();
             } else {
                 Py_DECREF(result);
             }
@@ -187,7 +183,7 @@ static PyObject* py_cancel_timer(PyObject* self, PyObject* args) {
     Py_RETURN_FALSE;
 }
 
-// Extend the method table
+// method table
 static PyMethodDef HostMethods[] = {
     {"log", py_log, METH_VARARGS, ""},
     {"on", py_on, METH_VARARGS, ""},
@@ -217,8 +213,6 @@ api bool plugin_init(PluginHost* host) {
 
     Py_Initialize();
 
-    // 1. Setup path so Python can find scripts in 'plugins/python'
-    // We use PyRun to set up sys.path easily
     PyRun_SimpleString(
         "import sys, os\n"
         "sys.path.append(os.path.abspath('plugins/python'))\n"

@@ -10,7 +10,6 @@
 #define DEP_TYPE_REQUIRED 0
 #define DEP_TYPE_OPTIONAL 1
 
-// Fixed expose macro - just adds extern "C" prefix
 #ifdef _WIN32
     #define pluginbhvr __cdecl
 #else
@@ -31,7 +30,7 @@
 
 #define expose EXTERN_C PLATFORM_EXPORT
 #define api expose pluginbhvr
-
+// expose and pluginbhvr are "legacy" but I will leave them since they are more verbose
 
 extern "C" {
 
@@ -85,7 +84,7 @@ typedef const PluginInfo* (*plugin_get_info_t)();
 
 }
 
-// Helper functions for plugins (use extern host declared in plugin)
+// Helper functions
 namespace plugin {
     extern PluginHost* host;
     

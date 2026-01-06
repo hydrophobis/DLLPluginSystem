@@ -3,7 +3,6 @@ import sys
 import traceback
 import json
 
-# Log levels
 INFO = "INFO"
 WARN = "WARN"
 ERROR = "ERROR"
@@ -23,8 +22,6 @@ def on(event_name):
         host.on(event_name, wrapper)
         return wrapper
     return decorator
-
-# --- Extended API ---
 
 def send_event(event, payload):
     """Send an event to the host."""
