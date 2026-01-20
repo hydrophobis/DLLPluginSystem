@@ -8,7 +8,7 @@ For the runtime to resolve paths correctly, use this structure:
 
 * **runtime.exe/runtime**: The main runtime.
 * **plugins.ini**: Configuration file for loading order.
-* **/plugins/**: `.dll` or `.so` files.
+* **/plugins/**: `.dll` or `.so` files. 
 * **/plugins/python/**: `.py` scripts. (if using the python plugin)
 
 ---
